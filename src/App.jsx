@@ -59,7 +59,7 @@ function App() {
   const questionElements = questionArray.map(item => 
   <Question key={item.question} question={item.question} answers={item.allAnswers} updateAnswers={updateAnswers} isGameOver={isGameOver}/> )
   return (
-      <main className='flex flex-col sm:w-[70%] w-[95%] my-[5%] sm:my-10 mx-auto justify-center items-center bg-[#F5F7FB] p-10 rounded-3xl shadow-2xl'>
+      <main className='flex flex-col sm:w-[70%] w-[95%] my-[2.5%] sm:my-10 mx-auto justify-center items-center bg-[#F5F7FB] p-10 rounded-3xl shadow-2xl'>
         <h1 className='text-3xl font-bold text-[#293264] mb-6'>Conseguí 5/5 y te ganas una 🍺</h1>
         { isLoading 
           ? 
@@ -73,31 +73,32 @@ function App() {
               colors={['#293264', '#293264', '#293264', '#293264', '#293264']}
             />
           : 
-            questionElements
-        }
-        {
-        isGameOver 
-        ?
-        <div className='flex items-center'>
-          {
-            correctAnswers < 5 
-            ?
-            <h2 className='mr-10 text-[#293264] text-md font-bold'>{correctAnswers}/5. Seguí intentando</h2>
-            :
-            <h2 className='mr-10 text-[#293264] text-md font-bold'>Felicitaciones, {correctAnswers}/5. El código secreto es: KM5</h2>
-          }
-          <button className="bg-[#4D5B9E] text-white px-4 py-2 mt-3 rounded-lg font-bold"
-                  onClick={playAgain}
-          >
-              Play Again
-          </button>
-        </div>
-        :
-        <button className="bg-[#4D5B9E] text-white px-4 py-2 mt-3 rounded-lg font-bold"
-                onClick={gameOver}
-        >
-              Check Answers
-        </button>
+            <>
+              {questionElements}
+              {isGameOver 
+              ?
+              <div className='flex items-center'>
+                {
+                  correctAnswers < 5 
+                  ?
+                  <h2 className='mr-10 text-[#293264] text-md font-bold'>{correctAnswers}/5. Seguí intentando</h2>
+                  :
+                  <h2 className='mr-10 text-[#293264] text-md font-bold'>Felicitaciones, {correctAnswers}/5. El código secreto es: KM5</h2>
+                }
+                <button className="bg-[#4D5B9E] text-white px-4 py-2 mt-3 rounded-lg font-bold"
+                        onClick={playAgain}
+                >
+                    Play Again
+                </button>
+              </div>
+              :
+              <button className="bg-[#4D5B9E] text-white px-4 py-2 mt-3 rounded-lg font-bold"
+                      onClick={gameOver}
+              >
+                    Check Answers
+              </button>
+              }
+            </>
         }
       </main>
     )
