@@ -1,101 +1,129 @@
-import {useEffect, useState} from 'react'
-import './App.css'
-import Question from './Question'
-import { ColorRing } from 'react-loader-spinner'
+
+import { useEffect, useState } from "react";
+import { ColorRing } from "react-loader-spinner";
+import Question from "./components/Question";
+import ScoreCard from "./components/ScoreCard";
+import { useTheme } from "./ThemeContext";
+import QuizControls from "./components/QuizControls";
+import  "./App.css"
+
 
 function App() {
-  const [questionArray, setQuestionArray] = useState([])
-  const [isGameOver, setIsGameOver] = useState(false)
-  const [correctAnswers, setCorrectAnswers] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const { theme, toggleTheme } = useTheme();
+  const [questionArray, setQuestionArray] = useState([]);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [level, setLevel] = useState("easy");
+  const [category, setCategory] = useState("9");
+  const [timer, setTimer] = useState(30);
+  const [manualTime, setManualTime] = useState(30);
+  const [quizStarted, setQuizStarted] = useState(false);
+
+  const fetchQuestions = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `https://opentdb.com/api.php?amount=5&type=multiple&difficulty=${level}&category=${category}`
+      );
+      const data = await response.json();
+      if (!data.results) throw new Error("No questions received");
+
+      const formattedQuestions = data.results.map((item) => {
+        const randomIndex = Math.floor(Math.random() * 4);
+        const answers = item.incorrect_answers.map((answer) => ({
+          answer,
+          isCorrect: false,
+          isSelected: false,
+        }));
+        answers.splice(randomIndex, 0, {
+          answer: item.correct_answer,
+          isCorrect: true,
+          isSelected: false,
+        });
+        return { question: item.question, answers };
+      });
+
+      setQuestionArray(formattedQuestions);
+      setIsLoading(false);
+      setTimer(manualTime);
+      setQuizStarted(true);
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const decodeHTML = (html) => {
-      const parser = new DOMParser()
-      const decodedString = parser.parseFromString(`<!doctype html><body>${html}`, 'text/html').body.textContent
-      return decodedString
-    };
-    if (!isGameOver) {
-      setIsLoading(true)
-      fetch('https://opentdb.com/api.php?amount=5&type=multiple')
-        .then((response) => response.json())
-        .then((data) => {
-          const returnArray = data.results.map((item) => {
-            const randomNum = Math.floor(Math.random() * 4)
-            const allAnswers = item.incorrect_answers.map((answer) => ({
-              isCorrect: false,
-              isHold: false,
-              answer: decodeHTML(answer),
-            }))
-            allAnswers.splice(randomNum, 0, {
-              isCorrect: true,
-              isHold: false,
-              answer: decodeHTML(item.correct_answer)
-            })
-            return { question: decodeHTML(item.question), allAnswers: allAnswers }
-          })
-          setQuestionArray(returnArray)
-          setIsLoading(false)
-        })
-        .catch((error) => console.error(error))
+    if (timer > 0 && quizStarted && !isGameOver) {
+      const countdown = setTimeout(() => setTimer((prev) => prev - 1), 1000);
+      return () => clearTimeout(countdown);
     }
-  }, [isGameOver])
+  }, [timer, isGameOver, quizStarted]);
 
-  function updateAnswers(newAnswers){
-    setQuestionArray(prevArray => prevArray.map(ansArray => ansArray.allAnswers[0].answer === newAnswers[0].answer ? {...ansArray, allAnswers: newAnswers} : ansArray))
+  function updateAnswers(questionIndex, answerIndex) {
+    setQuestionArray((prevQuestions) =>
+      prevQuestions.map((question, qIdx) =>
+        qIdx === questionIndex
+          ? {
+              ...question,
+              answers: question.answers.map((answer, aIdx) => ({
+                ...answer,
+                isSelected: aIdx === answerIndex,
+              })),
+            }
+          : question
+      )
+    );
   }
 
-  function gameOver(){
-    setIsGameOver(true)
-    questionArray.forEach(question => question.allAnswers.forEach(answer => (answer.isHold === true && answer.isCorrect === true) ? setCorrectAnswers(prevState => prevState + 1) : ""))
+  function gameOver() {
+    setIsGameOver(true);
+    const score = questionArray.reduce((total, question) =>
+      total + question.answers.filter((ans) => ans.isSelected && ans.isCorrect).length, 0
+    );
+    setCorrectAnswers(score);
   }
 
-  function playAgain(){
-    setQuestionArray([])
-    setIsGameOver(false)
-    setCorrectAnswers(0)
+  function playAgain() {
+    setQuestionArray([]);
+    setIsGameOver(false);
+    setCorrectAnswers(0);
+    setQuizStarted(false);
   }
 
-  const questionElements = questionArray.map(item => 
-  <Question key={item.question} question={item.question} answers={item.allAnswers} updateAnswers={updateAnswers} isGameOver={isGameOver}/> )
   return (
-      <main className='flex flex-col sm:w-[70%] w-[95%] my-[2.5%] sm:my-10 mx-auto justify-center items-center bg-[#F5F7FB] p-10 rounded-3xl shadow-2xl'>
-        <h1 className='text-3xl font-bold text-[#293264] mb-6'>Quizzical</h1>
-        { isLoading 
-          ? 
-            <ColorRing
-              visible={true}
-              height="80"
-              width="80"
-              ariaLabel="blocks-loading"
-              wrapperStyle={{}}
-              wrapperClass="blocks-wrapper"
-              colors={['#293264', '#293264', '#293264', '#293264', '#293264']}
-            />
-          : 
-            <>
-              {questionElements}
-              {isGameOver 
-              ?
-              <div className='flex items-center'>
-                <h2 className='mr-10 text-[#293264] text-md font-bold'>You scored {correctAnswers}/5 correct answers</h2>
-                <button className="bg-[#4D5B9E] text-white px-4 py-2 mt-3 rounded-lg font-bold"
-                        onClick={playAgain}
-                >
-                    Play Again
-                </button>
-              </div>
-              :
-              <button className="bg-[#4D5B9E] text-white px-4 py-2 mt-3 rounded-lg font-bold"
-                      onClick={gameOver}
-              >
-                    Check Answers
-              </button>
-              }
-            </>
-        }
-      </main>
-    )
+    <main className={`flex flex-col items-center p-10 rounded-xl shadow-lg transition-all duration-300 ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
+      <button onClick={toggleTheme} className="absolute top-5 right-5 p-2 bg-gray-700 text-white rounded hover:bg-gray-500 transition-all">
+        {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+      </button>
+      <h1 className="text-4xl font-extrabold text-[#293264] mb-6">Quizzical</h1>
+      {!quizStarted && (
+        <QuizControls 
+          setLevel={setLevel} 
+          setCategory={setCategory} 
+          setManualTime={setManualTime} 
+          fetchQuestions={fetchQuestions} 
+        />
+      )}
+      {isLoading && <ColorRing visible={true} height="80" width="80" />} 
+      {quizStarted && (
+        <>
+          <h3 className="text-lg font-bold">⏳ Time Left: {timer}s</h3>
+          {questionArray.map((item, qIdx) => (
+            <Question key={qIdx} questionIndex={qIdx} question={item.question} answers={item.answers} updateAnswers={updateAnswers} isGameOver={isGameOver} />
+          ))}
+          {isGameOver ? (
+            <ScoreCard correctAnswers={correctAnswers} totalQuestions={questionArray.length} playAgain={playAgain} />
+          ) : (
+            <button onClick={gameOver} className="bg-green-500 text-white px-5 py-3 rounded-lg font-bold hover:bg-green-700 mt-4 transition-all">
+              Check Answers
+            </button>
+          )}
+        </>
+      )}
+    </main>
+  );
 }
 
-export default App
+export default App;
